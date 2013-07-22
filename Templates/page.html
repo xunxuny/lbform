@@ -1,0 +1,166 @@
+{% extends "home.html" %}
+{% block title %}  {{ obj.name }} | {{ block.super }}{% endblock %}
+{% block header %} {{ block.super }}{% endblock %}
+{% block main %}  
+       <div class="container" id='ajax_article'>                                 
+                <h1 >{{ obj.name }}</h1>
+				<em>{{ obj.created_by }}发表于{{ obj.created_on|date:'Y-m-d'|default_if_none:""}}</em>
+                <p>{{obj.content}}</p>
+        </div><!-- #content -->
+
+{% if obj.created_by == request.user %}         
+	 <div class="container">
+	<p>
+<button id = "id_edit_article" class="btn btn-primary" type="button">修改帖子</button>
+<button id = "id_new_review" class="btn btn-primary" type="button">发表评论</button>
+<div id="articleform" style="display:None">        
+        <form action="" method="post" id="id_article_form">
+            <label style="font-size:17pt;font-weight:bold"> 修改帖子</label></br>
+            <label>标题</label></br>
+            <input type="text" name="a_name" /></br>
+            <label>内容</label></br>
+            <textarea name="a_content" cols="50" rows="10" ></textarea></br>
+            <button type="button" class="btn btn-primary" id="id_ok_article" >发表</button>
+			<button type="button" class="btn btn-primary" id="id_cancel_edit" >取消</button>
+        </form>        
+</div>
+</p>
+		
+	</div><!-- #main -->
+{% endif %}	
+		
+<div class="review_content" >
+<div class="container" >  
+	<div id="commentlist">
+    {% if obj.comment_set.count %}
+        <h2 > 评论</h2>
+        <ol>        
+        {% for comment in obj.comment_set.all %}
+        <li >        
+            <p>{{ comment.content }}</p>
+            <p><em>{{ comment.created_by|default_if_none:""}} {{ comment.name|default_if_none:""}}</em> 评论于<em>{{ comment.created_on|date:'Y-m-d'|default_if_none:""}}</em></p>   
+        </li>            
+        {% endfor %}        
+        </ol>
+    {% endif %}
+	</div>
+</div>
+{% if request.user.is_authenticated %}
+<div class="review" style="display:None">        
+        <form action="" method="post" id="id_review_form">
+            <label style="font-size:17pt;font-weight:bold"> 发表评论</label></br>
+            <label>昵称</label></br>
+            <input type="text" name="name" /></br>
+            <label>评论</label></br>
+            <textarea name="content" cols="10" rows="10" ></textarea></br>
+            <button type="button" class="btn btn-primary" id="id_write_review" >发表</button>
+			<button type="button" class="btn btn-primary" id="id_cancel_review" >取消</button>
+        </form>        
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block footer%} {{ block.super }} {% endblock %}
+
+{% block footer_js %}
+    {{ block.super }}
+    <script type="text/javascript">
+        $(function(){ 
+$("#id_ok_article").click(function(){
+                if ( confirm("确认提交帖子？")) {
+                    var name =  $("input[name='a_name']").val();
+                    var content =  $("textarea[name='a_content']").val();
+					 $.post("{% url edit_article obj.id %}", {'name': name,'content':content}, function(data) {
+						ajax_article();
+						$("#id_edit_article").toggle();
+						$("#id_new_review").toggle();
+						$("#articleform").css("display","None");
+						$("#ajax_article").css("display","block");
+						$(".review_content").css("display","block");
+                    }); 
+                     
+                }
+
+            });
+	$("#id_cancel_edit").click(function(){
+			$("#id_edit_article").toggle();
+			$("#id_new_review").toggle();
+            $("#articleform").css("display","None");
+			$("#ajax_article").css("display","block");
+			$(".review_content").css("display","block");
+            });
+	$("#id_edit_article").click(function(){
+			$("#id_edit_article").toggle();
+			$("#id_new_review").toggle();
+            $("#articleform").css("display","block");
+			$(".review_content").css("display","None");
+			$("#ajax_article").css("display","None");
+			$("input[name='a_name']").val($("#ajax_article h1").text());
+            $("textarea[name='a_content']").val($("#ajax_article p").text());
+            });		
+			
+	$("#id_new_review").click(function(){
+			$("#id_edit_article").toggle();
+			$("#id_new_review").toggle();
+			$(".review").css("display","block");
+            });		
+    $("#id_cancel_review").click(function(){
+			$("#id_edit_article").toggle();
+			$("#id_new_review").toggle();
+			$(".review").css("display","None");
+            });
+			
+			
+			$("#id_write_review").click(function(){
+                if ( confirm("确认提交评论？")) {
+                    var name =  $("input[name='name']").val();
+                    var content =  $("textarea[name='content']").val();
+                    $.post("{% url add_comment obj.id %}", {'name': name,'content':content}, function(data) {
+                        loadComments();
+						$("#id_edit_article").toggle();
+						$("#id_new_review").toggle();
+						$(".review").css("display","None");
+                    });        
+                }
+
+            });
+			function ajax_article(){ 
+          		$("#ajax_article").empty();       		
+	        	$.ajax({
+		              url:'{% url ajax_article obj.id %}',
+		              dataType:'json',
+		              success:function(data){
+		              	if (data.row){ 						
+			                    var txt = "<h1 >"+data.row.name+"</h1><em>"
+								+data.row.created_by +"发表于"+data.row.created_on
+								+"</em><p>"+data.row.content+"</p>";
+								$("#ajax_article").append(txt);
+			                }
+		              	}
+		          });
+				  }
+	function loadComments(){ 
+          		$("#commentlist").empty();       		
+	        	$.ajax({
+		              url:'{% url load_comments obj.id %}',
+		              dataType:'json',
+		              success:function(data){
+		              	if (data.rows.length){
+						var txt = "<h2 > 评论</h2><ol> "
+						$("#commentlist").append(txt);
+		              		for (i=0; i<data.rows.length; i++)
+			                {               
+			                    var txt = "<li><p>"+data.rows[i].content+"</p></div><p><em>"
+								+data.rows[i].created_by+data.rows[i].name+"</em> 评论于<em>"
+								+data.rows[i].created_on+"</em></p></div></li>";
+								$("#commentlist").append(txt);			      
+			                }
+						$("#commentlist").append("</ol>");
+		              	}
+		              }
+		          });
+	         }
+        });
+    </script>
+{% endblock %}

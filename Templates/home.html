@@ -1,0 +1,194 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<title> {% block title %} 云卷云舒 {% endblock %} </title>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<meta name="viewport" content="width=device-width" />
+<link href="{{STATIC_URL}}bootstrap/css/bootstrap.css" rel="stylesheet"/>
+<style type="text/css">
+      #footer {
+        height: 60px;
+      }
+      #footer {
+        background-color: #f5f5f5;
+      }
+	  .review >form {
+    background: #CCC;    
+    border: 1px solid #ddd;
+    -moz-border-radius: 10px;
+    -webkit-border-radius:10px;
+    border-radius: 10px;
+    padding: 1.625em;
+    
+    width:20%;
+    position: relative;
+    left:3em;
+    
+}
+
+.review >form >input,textarea{
+    margin-top: 0.1em ; 
+    margin-bottom: 0.5em ; 
+}
+
+.review >form >button{
+    margin-top: 0.1em ; 
+    -moz-border-radius: 8px;
+    -webkit-border-radius:8px;
+    border-radius: 8px;
+    width:30%;
+}
+
+
+     
+
+    </style>
+<link href="{{STATIC_URL}}bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+<!--[if lt IE 9]>
+<script src="{{STATIC_URL}}bootstrap/js/html5shiv.js"></script>
+<![endif]-->
+</head>
+
+<body >  
+{% block header %}
+<div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+		
+          
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+			<li ><a href="{% url home %}" title="首页">首页</a></li>
+			{% if request.user.is_authenticated %}
+			  <li><a href="{% url user_search%}">{{request.user.username}}</a></li>
+			  <li><a href="{% url chgpassword_view %}"> 修改密码 </a></li>
+			  <li><a href="{% url logout_view %}">注销</a></li>
+			{% else %}
+              <li><a href="{% url login_view %}">登录</a></li>
+              <li><a href="{% url register_view %}">注册</a></li>
+			{% endif %}
+         
+            </ul>
+			<form class="navbar-form pull-right form-search" method="POST" id="searchform" action="{% url search %}">
+		 {% csrf_token %} 
+		<input type="text" class="input-medium search-query" name="title" id="id_filter" placeholder="搜索" />
+	</form>	
+
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div> <hr>
+{% endblock %}	
+{% block main %}
+ <hr>
+	<div class="container" >
+
+			<table class="table" id="article_table">
+			<tr>
+			<th>标题</th>
+			<th>作者</th>
+			<th>回复</th>
+			<th>发表时间</th>
+			</tr>
+		{% for obj in objs %}
+		<tr><td><a href="{% url page obj.id %}">{{obj.name}}</a></td>
+		<td><a href="{% url page obj.id %}">{{ obj.created_by|default_if_none:""}}</a></td>
+		<td><a href="{% url page obj.id %}">{{ obj.comment_set.count}}</a></td>
+		<td><a href="{% url page obj.id %}">{{ obj.created_on|date:'Y-m-d'|default_if_none:""}}</a></td>
+		</tr>
+		{% endfor %}
+		</table>
+	</div><!-- #main -->
+	 <hr>
+	 {% if request.user.is_authenticated %}         
+	 <div class="container">
+	<p>
+<button id = "id_new_article" class="btn btn-primary" type="button">发表新帖</button>
+<div id="newarticleform" style="display:None">        
+        <form action="" method="post" id="id_article_form">
+            <label style="font-size:17pt;font-weight:bold"> 发表新帖</label></br>
+            <label>标题</label></br>
+            <input type="text" name="name" /></br>
+            <label>内容</label></br>
+            <textarea name="content" cols="50" rows="10" ></textarea></br>
+            <button type="button" class="btn btn-primary" id="id_write_article" >发表</button>
+			<button type="button" class="btn btn-primary" id="id_cancel" >取消</button>
+        </form>        
+</div>
+</p>
+		
+	</div><!-- #main -->
+{% endif %}	
+	 
+{% endblock %}
+
+	
+{% block footer %} 
+ <div class="container">
+	<p class="muted credit">
+        Powered by xunxun.me
+    </p>
+</div>
+{% endblock %}	
+</body>	
+	
+{% block footer_js%}
+<script src="{{STATIC_URL}}js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript">
+ $(function(){   
+	$("#id_filter").keyup(function(event){
+		if(event.keyCode==13)
+		{
+			$("#searchform").submit(function () {});
+			
+		}
+	}); 
+	$("#id_write_article").click(function(){
+                if ( confirm("确认提交帖子？")) {
+                    var name =  $("input[name='name']").val();
+                    var content =  $("textarea[name='content']").val();
+					 $.post("{% url add_article %}", {'name': name,'content':content}, function(data) {
+						loadArticles();	
+						$("#id_new_article").toggle();
+						$("#newarticleform").css("display","None");
+                    }); 
+                     
+                }
+
+            });
+	$("#id_cancel").click(function(){
+			$("#id_new_article").toggle();
+            $("#newarticleform").css("display","None");
+            });
+	$("#id_new_article").click(function(){
+			$("#id_new_article").toggle();
+            $("#newarticleform").css("display","block");
+            });
+	 });
+	 function loadArticles(){ 
+          		$("#article_table").empty();       		
+	        	$.ajax({
+		              url:'{% url load_articles %}',
+		              dataType:'json',
+		              success:function(data){
+		              	if (data.rows.length){
+		              		var txt = "<tr><th>标题</th><th>作者</th><th>回复</th><th>发表时间</th></tr>";
+							$("#article_table").append(txt);
+		              		for (i=0; i<data.rows.length; i++)
+			                {               
+			                    var txt = "<tr><td><a href='/"+data.rows[i].id+"/'>"+data.rows[i].name+"</a></td><td>"
+										+data.rows[i].created_by+"</td><td>"+data.rows[i].count+"</td><td>"
+										+data.rows[i].date+"</td></tr>";
+								$("#article_table").append(txt);
+			      
+			                }
+		              	}
+		              }
+		          });
+	         }
+	 
+  </script>
+		
+{% endblock %}
+
+</html>
